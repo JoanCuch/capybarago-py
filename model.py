@@ -459,16 +459,11 @@ class Model:
             victory_bool = chapter.simulate()
 
             # Chapter Simulation
-            self.log.add_log(
-                Log_Actor.SIMULATION, Log_Granularity.CHAPTER, Log_Action.SIMULATE,
-                f"Chapter {chapter_level} simulation in round {rounds_done} completed with status: {'Victory' if victory_bool else 'Defeat'}",
-                {"chapter_level": chapter_level,
-                    "victory": victory_bool}
-            )
+            self.log.log_round_completed(chapter_level,victory_bool,rounds_done)
 
             # Meta Progression Simulation
             meta_progression.simulate()
-            
+
             if victory_bool:
                 meta_progression.chapter_level += 1 
 

@@ -112,7 +112,20 @@ if "simulation_done" not in st.session_state:
 if st.button("Run Simulation"):
     model = Model.initialize(config)
     log = model.simulate()
-    st.dataframe(log.get_logs_as_dataframe())
+    log_df = log.get_logs_as_dataframe()
+    st.dataframe(log_df)
+
+    log_df[log_df["action"] == Log_Action.ROUND_COMPLETED.value]
+
+    st.line_chart(
+        log_df[log_df["action"] == Log_Action.ROUND_COMPLETED.value].set_index("rounds_done")["chapter_level"],
+        use_container_width=True,
+        x_label="Rounds Done",
+        y_label="Chapter Level"
+    )
+
+
+
     #st.session_state.simulation_done = True
 
     # Show results
@@ -122,6 +135,8 @@ if st.button("Run Simulation"):
         #st.write(log_df)
         #plot_test()
         #plot_turn_stats(log)
+
+    
     
     
 

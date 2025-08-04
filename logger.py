@@ -23,6 +23,7 @@ class Log_Action(Enum) :
     ENEMY_ATTACK = "enemy_attack"
     PLAYER_DEFEATED = "player_defeated"
     ENEMY_DEFEATED = "enemy_defeated"
+    ROUND_COMPLETED = "round_completed"
 
 @dataclass
 class Log:
@@ -69,3 +70,28 @@ class Log:
             flattened_df = flattened_df.drop(columns=["payload"])
 
         return flattened_df
+    
+    ## ------ Action Logs ------
+    def log_round_completed(self, chapter_level: int, victory: bool, rounds_done: int):
+        log_entry = {
+                "actor": Log_Actor.SIMULATION.value,
+                "granularity": Log_Granularity.CHAPTER.value,
+                "action": Log_Action.ROUND_COMPLETED.value,
+                "message": f"Round {rounds_done} completed: Chapter {chapter_level} ended in {'Victory' if victory else 'Defeat'}",
+                "rounds_done": rounds_done,
+                "chapter_level": chapter_level,
+                "victory": victory,
+            }
+        self._logs.append(log_entry)
+
+        #  self.add_log(
+        #     Log_Actor.SIMULATION,
+        #     Log_Granularity.CHAPTER,
+        #     Log_Action.ROUND_COMPLETED,
+        #     f"Round {rounds_done} completed: Chapter {chapter_level} ended in {'Victory' if victory else 'Defeat'}",
+        #     {
+        #         "round": rounds_done,
+        #         "chapter": chapter_level,
+        #         "victory": victory
+        #     } 
+        # )
