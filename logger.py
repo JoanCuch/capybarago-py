@@ -1,4 +1,5 @@
 from enum import Enum
+from dataclasses import dataclass
 import copy
 
 class Log_Actor (Enum):
@@ -23,11 +24,16 @@ class Log_Action(Enum) :
     PLAYER_DEFEATED = "player_defeated"
     ENEMY_DEFEATED = "enemy_defeated"
 
-class Logger:
-    _logs = []
+@dataclass
+class Log:
+    _logs: list
 
-    @classmethod
-    def add_log(cls, actor: Log_Actor, granularity: Log_Granularity, action: Log_Action, message: str, payload: dict):
+    @staticmethod
+    def initialize():
+        _logs = []
+        return Log(_logs=_logs)
+
+    def add_log(self, actor: Log_Actor, granularity: Log_Granularity, action: Log_Action, message: str, payload: dict):
         log_entry = {
             "actor": actor.value,
             "granularity": granularity.value,
@@ -35,29 +41,24 @@ class Logger:
             "message": message,
             "payload": copy.deepcopy(payload) if payload else {},
         }
-        cls._logs.append(log_entry)
+        self._logs.append(log_entry)
 
-    @classmethod
-    def get_logs(cls):
-        return cls._logs
+    def get_logs(self):
+        return self._logs
 
-    @classmethod
-    def clear_logs(cls):
-        cls._logs = []
+    def clear_logs(self):
+        self._logs = []
 
-    @classmethod
-    def get_logs_as_dataframe(cls):
+    def get_logs_as_dataframe(self):
         import pandas as pd
-        return pd.DataFrame(cls._logs)
+        return pd.DataFrame(self._logs)
 
-    @classmethod
-    def has_logs(cls):
-        return len(cls._logs) > 0
+    def has_logs(self):
+        return len(self._logs) > 0
     
-    @classmethod
-    def get_flattened_logs_df(cls):
+    def get_flattened_logs_df(self):
         import pandas as pd
-        raw_logs = cls.get_logs_as_dataframe().to_dict(orient="records")
+        raw_logs = self.get_logs_as_dataframe().to_dict(orient="records")
 
         flattened_df = pd.json_normalize(
             raw_logs,

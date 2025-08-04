@@ -1,10 +1,11 @@
-import streamlit as st
+import streamlit as st, time, os
 import pandas as pd
 from config_import import Config, ConfigKeys
-from model import model, Logger
+from model import Model
 import matplotlib.pyplot as plt
 from typing import Any, Dict, cast
-from logger import Logger, Log_Action, Log_Actor, Log_Granularity
+from logger import Log, Log_Action, Log_Actor, Log_Granularity
+import debugpy
 
 
 def show_log_table(log_df: pd.DataFrame):
@@ -61,8 +62,8 @@ def show_log_table(log_df: pd.DataFrame):
     ]
     st.dataframe(daily_graph_df)
 
-def plot_test():
-    log_df = Logger.get_logs_as_dataframe()
+def plot_test(log: Log):
+    log_df = log.get_logs_as_dataframe()
     #log_df = Logger.get_flattened_logs_df()
     log_df = log_df[log_df["granularity"] == Log_Granularity.DAY.value]
     log_df = pd.json_normalize(log_df.to_dict(orient="records"), sep=".")
@@ -70,11 +71,11 @@ def plot_test():
     st.dataframe(log_df)
     st.write(log_df.columns)
 
-def plot_turn_stats():
+def plot_turn_stats(log: Log):
     st.subheader("Player Stats Per Turn")
 
     # Filter logs
-    log_df = Logger.get_logs_as_dataframe()
+    log_df = log.get_logs_as_dataframe()
     log_df = log_df[log_df["granularity"] == Log_Granularity.DAY.value]
     day_logs_df = pd.json_normalize(log_df.to_dict(orient="records"), sep=".")
 
@@ -92,6 +93,8 @@ def plot_turn_stats():
                     use_container_width=True,
                 )
 
+st.write("Run nº", os.getpid(), time.time())
+
 st.title("Capybara Go Inspired Simulator")
 
 config = Config.initialize()
@@ -107,17 +110,18 @@ if "simulation_done" not in st.session_state:
     st.session_state.simulation_done = False
 
 if st.button("Run Simulation"):
-    Logger.clear_logs()
-    model(config)
-    st.session_state.simulation_done = True
+    model = Model.initialize(config)
+    log = model.simulate()
+    st.dataframe(log.get_logs_as_dataframe())
+    #st.session_state.simulation_done = True
 
-# Show results
-if st.session_state.simulation_done:
-    #log_df = Logger.get_logs_as_dataframe()
-    #show_log_table(log_df)
-    #st.write(log_df)
-    #plot_test()
-    plot_turn_stats()
+    # Show results
+    #if st.session_state.simulation_done:
+        #log_df = Logger.get_logs_as_dataframe()
+        #show_log_table(log_df)
+        #st.write(log_df)
+        #plot_test()
+        #plot_turn_stats(log)
     
     
 
