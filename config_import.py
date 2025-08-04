@@ -34,6 +34,22 @@ class ConfigKeys(Enum):
     CHAPTER_DAILY_EVENT_PARAM = "daily_event_param"
     CHAPTER_DAILY_GOLD_REWARD = "gold_reward"
 
+
+@st.cache_data(ttl=300)  # cache for 5 minutes
+def _fetch_worksheet_df(spreadsheet_name: str, worksheet_name: str) -> pd.DataFrame:
+    """
+    Return the worksheet as DataFrame, caching the result to spare Google API calls.
+    Parameters
+    ----------
+    spreadsheet_name : str
+        The Google Sheets file name.
+    worksheet_name : str
+        The tab to fetch inside that file.
+    """
+    client = connect_to_API()
+    sheet = client.open(spreadsheet_name)
+    return pd.DataFrame(sheet.worksheet(worksheet_name).get_all_records())
+
 @dataclass
 class Config:
     _player_config_df: pd.DataFrame
@@ -48,9 +64,15 @@ class Config:
         # Get the spreadsheet and turn into DataFrames
         sheet = client.open(ConfigSheets.SPREADSHEET_NAME.value)
   
-        player_config_df = pd.DataFrame(sheet.worksheet(ConfigSheets.PLAYER_SHEET_NAME.value).get_all_records())
-        enemies_config_df = pd.DataFrame(sheet.worksheet(ConfigSheets.ENEMIES_SHEET_NAME.value).get_all_records())
-        chapters_config_df = pd.DataFrame(sheet.worksheet(ConfigSheets.CHAPTERS_SHEET_NAME.value).get_all_records())
+        player_config_df = _fetch_worksheet_df(
+            ConfigSheets.SPREADSHEET_NAME.value, ConfigSheets.PLAYER_SHEET_NAME.value
+        )
+        enemies_config_df = _fetch_worksheet_df(
+            ConfigSheets.SPREADSHEET_NAME.value, ConfigSheets.ENEMIES_SHEET_NAME.value
+        )
+        chapters_config_df = _fetch_worksheet_df(
+            ConfigSheets.SPREADSHEET_NAME.value, ConfigSheets.CHAPTERS_SHEET_NAME.value
+        )
 
         config = Config(
             _player_config_df=player_config_df,
