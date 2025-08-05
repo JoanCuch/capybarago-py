@@ -6,7 +6,6 @@ import json
 from typing import Optional
 from enum import Enum
 from dataclasses import dataclass, field
-from logger import Log, Log_Actor, Log_Granularity, Log_Action
 
 class ConfigSheets(Enum):
     SPREADSHEET_NAME = "capybara_sim_data"

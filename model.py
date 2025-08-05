@@ -4,7 +4,7 @@ import pandas as pd
 import config_import as config_import
 from config_import import ConfigKeys, Config
 from enum import Enum
-from logger import Log, Log_Actor, Log_Granularity,Log_Action
+from logger import Log
 
 @dataclass
 class Meta_stat:
@@ -102,26 +102,12 @@ class Player_meta_progression:
         if self.gold >= stat.get_cost():
             self.gold -= stat.get_cost()
             stat.level_up()
-            self.log.add_log(
-                Log_Actor.SIMULATION, Log_Granularity.META, Log_Action.SIMULATE,
-                f"Upgraded {stat.name} to level {stat.get_level()}",
-                {
-                    "stat_name": stat.name,
-                    "new_level": stat.get_level(),
-                    "new_value": stat.get_value(),
-                    "remaining_gold": self.gold
-                }
-            )
+            self.log.log_stat_level_up(stat.name, stat.get_level())
 
         return
 
     def chapter_level_up(self):
         self.chapter_level += 1
-        self.log.add_log(
-            Log_Actor.SIMULATION, Log_Granularity.META, Log_Action.SIMULATE,
-            f"Chapter level up: new chapter level is {self.chapter_level}",
-            {"chapter_level": self.chapter_level}
-        )
         return
 
 @dataclass
@@ -278,11 +264,11 @@ class Day:
             case _:
                 raise ValueError(f"Unknown event type: {self._event_type}")
 
-        self.log.add_log(
-            Log_Actor.SIMULATION, Log_Granularity.DAY, Log_Action.SIMULATE,
-            f"Day simulated with event {self.event_type.value} and param {self.event_param}",
-            {
-            }
+        self.log.log_day_completed(
+            chapter_num=self.chapter_num,
+            day_num=self.day_num,
+            event_type=self.event_type.value,
+            event_param=self.event_param
         )
 
         return
@@ -334,14 +320,10 @@ class Chapter:
                 victory = False
                 break
 
-        self.log.add_log(
-            Log_Actor.SIMULATION, Log_Granularity.CHAPTER, Log_Action.SIMULATE,
-            f"Chapter {self.meta_progression.chapter_level} simulation completed with status: {'Victory' if victory else 'Defeat'}",
-            {
-                "chapter_level": self.meta_progression.chapter_level,
-                "victory": victory
-            }
-        )
+        if victory:
+            self.log.log_chapter_victory(self.meta_progression.chapter_level)
+        else:
+            self.log.log_chapter_defeat(self.meta_progression.chapter_level)
 
         return victory
 
@@ -353,33 +335,21 @@ def get_config_value_str_row(config_df, row: ConfigKeys, row_key: str, column_ke
 
 def simulate_battle(player_character: Player_Character, enemy: EnemyCharacter, log: Log):
 
-    log.add_log(
-        Log_Actor.GAME,
-        Log_Granularity.BATTLE,
-        Log_Action.INITIALIZE, 
-        f"Battle initialized between player and {enemy.type.value}",
-        {
-        }
-    )
-
     while not player_character.is_dead() and not enemy.is_dead():
         # Player attacks enemy
         damage_to_enemy = max(0, player_character.stat_atk - enemy.stat_def)
         enemy.modify_hp(-damage_to_enemy)
 
-        log.add_log(
-            Log_Actor.GAME, Log_Granularity.TURN, Log_Action.PLAYER_ATTACK,
-            f"Player attacks {enemy.type.value} for {damage_to_enemy} damage. Enemy HP: {enemy.stat_hp}/{enemy.stat_max_hp}",
-            {
-             "damage": damage_to_enemy
-            })
+        log.log_player_attack(
+            enemy_type=enemy.type.value,
+            damage=damage_to_enemy,
+            enemy_hp=enemy.stat_hp
+        )
 
         if enemy.is_dead():
-            log.add_log(
-                Log_Actor.GAME, Log_Granularity.BATTLE, Log_Action.ENEMY_DEFEATED,
-                f"Enemy {enemy.type.value} defeated!",
-                {
-                }
+            log.log_battle_victory(
+                enemy_type=enemy.type.value,
+                player_hp=player_character.stat_hp
             )
             break
 
@@ -387,19 +357,19 @@ def simulate_battle(player_character: Player_Character, enemy: EnemyCharacter, l
         damage_to_player = max(0, enemy.stat_atk - player_character.stat_def)
         player_character.modify_hp(-damage_to_player)
 
-        log.add_log(
-            Log_Actor.GAME, Log_Granularity.TURN, Log_Action.ENEMY_ATTACK,
-            f"{enemy.type.value} attacks player for {damage_to_player} damage. Player HP: {player_character.stat_hp}/{player_character.stat_max_hp}",
-            {"damage": damage_to_player})
+        log.log_enemy_attack(
+            enemy_type=enemy.type.value,
+            damage=damage_to_player,
+            player_hp=player_character.stat_hp
+        )
 
         if player_character.is_dead():
 
-            log.add_log(
-                Log_Actor.GAME, Log_Granularity.BATTLE, Log_Action.PLAYER_DEFEATED,
-                "Player defeated!",
-                {
-                }
+            log.log_battle_defeat(
+                enemy_type=enemy.type.value,
+                enemy_hp= enemy.stat_hp
             )
+
             break
 
         assert damage_to_enemy == 0 and damage_to_player == 0, "Infinite battle detected, both 0 damage"
@@ -421,18 +391,9 @@ class Model:
 
     def simulate(self)-> Log:
 
-        
-
         player_config = self.config.get_player_config()
         enemies_config = self.config.get_enemies_config()
         total_chapters = self.config.get_total_chapters()
-
-        self.log.add_log(
-            Log_Actor.SIMULATION, Log_Granularity.SIMULATION, Log_Action.INITIALIZE,
-            "Model initialized configs: player and enemies",
-            {"player_config": player_config,
-                "enemies_config": enemies_config,
-                "total_chapters": total_chapters})
 
         meta_progression = Player_meta_progression.initialize(player_config, self.log)
 
@@ -444,13 +405,6 @@ class Model:
             rounds_done+=1
 
             assert rounds_done <= 10, "possible infinite loop detected"
-
-            self.log.add_log(
-                Log_Actor.SIMULATION, Log_Granularity.CHAPTER, Log_Action.SIMULATE,
-                f"Starting simulation for chapter {meta_progression.chapter_level} in round {rounds_done}",
-                {"chapter_level": meta_progression.chapter_level,
-                    "rounds_done": rounds_done
-                    })
             
             # Chapter Simulation
             chapter_level = meta_progression.chapter_level

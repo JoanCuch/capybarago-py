@@ -2,47 +2,26 @@ from enum import Enum
 from dataclasses import dataclass
 import copy
 
-class Log_Actor (Enum):
-    PLAYER=  "player"
-    GAME= "game"
-    SIMULATION= "simulation"
-
-class Log_Granularity (Enum):
-    SIMULATION = "simulation"
-    META= "meta"
-    CHAPTER = "chapter"
-    DAY = "day"
-    BATTLE = "battle"
-    TURN = "turn"
-
-class Log_Action(Enum) :
-    INITIALIZE = "initialize"
-    SIMULATE = "simulate"
-    END = "end"
-    PLAYER_ATTACK = "player_attack"
-    ENEMY_ATTACK = "enemy_attack"
-    PLAYER_DEFEATED = "player_defeated"
-    ENEMY_DEFEATED = "enemy_defeated"
-    ROUND_COMPLETED = "round_completed"
-
 @dataclass
 class Log:
+    
+    class Action(Enum) :
+        ROUND_COMPLETED = "round_completed"
+        META_STAT_LEVEL_UP = "meta_stat_level_up"
+        DAY_COMPLETED = "day_completed"
+        CHAPTER_VICTORY = "chapter_victory"
+        CHAPTER_DEFEAT = "chapter_defeat"
+        PLAYER_ATTACK = "player_attack"
+        ENEMY_ATTACK = "enemy_attack"
+        BATTLE_VICTORY = "battle_victory"
+        BATTLE_DEFEAT = "battle_defeat"
+
     _logs: list
 
     @staticmethod
     def initialize():
         _logs = []
         return Log(_logs=_logs)
-
-    def add_log(self, actor: Log_Actor, granularity: Log_Granularity, action: Log_Action, message: str, payload: dict):
-        log_entry = {
-            "actor": actor.value,
-            "granularity": granularity.value,
-            "action": action.value,
-            "message": message,
-            "payload": copy.deepcopy(payload) if payload else {},
-        }
-        self._logs.append(log_entry)
 
     def get_logs(self):
         return self._logs
@@ -74,9 +53,7 @@ class Log:
     ## ------ Action Logs ------
     def log_round_completed(self, chapter_level: int, victory: bool, rounds_done: int):
         log_entry = {
-                "actor": Log_Actor.SIMULATION.value,
-                "granularity": Log_Granularity.CHAPTER.value,
-                "action": Log_Action.ROUND_COMPLETED.value,
+                "action": self.Action.ROUND_COMPLETED.value,
                 "message": f"Round {rounds_done} completed: Chapter {chapter_level} ended in {'Victory' if victory else 'Defeat'}",
                 "rounds_done": rounds_done,
                 "chapter_level": chapter_level,
@@ -84,14 +61,78 @@ class Log:
             }
         self._logs.append(log_entry)
 
-        #  self.add_log(
-        #     Log_Actor.SIMULATION,
-        #     Log_Granularity.CHAPTER,
-        #     Log_Action.ROUND_COMPLETED,
-        #     f"Round {rounds_done} completed: Chapter {chapter_level} ended in {'Victory' if victory else 'Defeat'}",
-        #     {
-        #         "round": rounds_done,
-        #         "chapter": chapter_level,
-        #         "victory": victory
-        #     } 
-        # )
+
+    def log_stat_level_up(self, stat_name: str, new_level: int):
+        log_entry = {
+            "action": self.Action.META_STAT_LEVEL_UP.value,
+            "message": f"Stat {stat_name} leveled up to {new_level}",
+            "stat_name": stat_name,
+            "new_level": new_level
+        }
+        self._logs.append(log_entry)
+
+
+    def log_day_completed(self, day_num: int, chapter_num: int, event_type, event_param):
+        log_entry = {
+            "action": self.Action.DAY_COMPLETED.value,
+            "message": f"Day {day_num} completed for Chapter {chapter_num} with event {event_type}",
+            "day_num": day_num,
+            "chapter_num": chapter_num,
+            "event_type": event_type,
+            "event_param": event_param
+        }
+        self._logs.append(log_entry)
+
+    def log_chapter_victory(self, chapter_num: int):
+        log_entry = {
+            "action": self.Action.CHAPTER_VICTORY.value,
+            "message": f"Chapter {chapter_num} completed with victory",
+            "chapter_num": chapter_num
+        }
+        self._logs.append(log_entry)
+
+    def log_chapter_defeat(self, chapter_num: int):
+        log_entry = {
+            "action": self.Action.CHAPTER_DEFEAT.value,
+            "message": f"Chapter {chapter_num} completed with defeat",
+            "chapter_num": chapter_num
+        }
+        self._logs.append(log_entry)
+
+    def log_player_attack(self, damage: int, enemy_type: str, enemy_hp: int):
+        log_entry = {
+            "action": self.Action.PLAYER_ATTACK.value,
+            "message": f"Player attacked {enemy_type} for {damage} damage",
+            "damage": damage,
+            "enemy_type": enemy_type,
+            "enemy_hp": enemy_hp
+        }
+        self._logs.append(log_entry)
+
+    def log_enemy_attack(self, damage: int, enemy_type: str, player_hp: int):
+        log_entry = {
+            "action": self.Action.ENEMY_ATTACK.value,
+            "message": f"{enemy_type} attacked player for {damage} damage",
+            "damage": damage,
+            "player_hp": player_hp,
+            "enemy_type": enemy_type
+        }
+        self._logs.append(log_entry)
+
+    def log_battle_victory(self, enemy_type: str, player_hp: int):
+        log_entry = {
+            "action": self.Action.BATTLE_VICTORY.value,
+            "message": f"Battle won against {enemy_type}",
+            "enemy_type": enemy_type,
+            "player_hp": player_hp
+        }
+        self._logs.append(log_entry)
+
+    def log_battle_defeat(self, enemy_type: str, enemy_hp: int):
+        log_entry = {
+            "action": self.Action.BATTLE_DEFEAT.value,
+            "message": f"Battle lost against {enemy_type}",
+            "enemy_type": enemy_type,
+            "enemy_hp": enemy_hp
+        }
+        self._logs.append(log_entry)

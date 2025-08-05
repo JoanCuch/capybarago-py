@@ -4,7 +4,7 @@ from config_import import Config, ConfigKeys
 from model import Model
 import matplotlib.pyplot as plt
 from typing import Any, Dict, cast
-from logger import Log, Log_Action, Log_Actor, Log_Granularity
+from logger import Log
 import debugpy
 
 
@@ -62,37 +62,6 @@ def show_log_table(log_df: pd.DataFrame):
     ]
     st.dataframe(daily_graph_df)
 
-def plot_test(log: Log):
-    log_df = log.get_logs_as_dataframe()
-    #log_df = Logger.get_flattened_logs_df()
-    log_df = log_df[log_df["granularity"] == Log_Granularity.DAY.value]
-    log_df = pd.json_normalize(log_df.to_dict(orient="records"), sep=".")
-
-    st.dataframe(log_df)
-    st.write(log_df.columns)
-
-def plot_turn_stats(log: Log):
-    st.subheader("Player Stats Per Turn")
-
-    # Filter logs
-    log_df = log.get_logs_as_dataframe()
-    log_df = log_df[log_df["granularity"] == Log_Granularity.DAY.value]
-    day_logs_df = pd.json_normalize(log_df.to_dict(orient="records"), sep=".")
-
-    # Create a graph for each chapter
-    chapter_ids = sorted(day_logs_df["payload.day.chapter_num"].unique().tolist())
-
-    for chapter_id in chapter_ids:
-        chapter_df = day_logs_df[day_logs_df["payload.day.chapter_num"] == chapter_id]
-        st.markdown(f"### Chapter {chapter_id}")
-
-        for stat in ["payload.player_character.stat_hp", "payload.player_character.stat_atk", "payload.player_character.stat_def", "payload.player_character.stat_max_hp"]:
-            if stat in chapter_df:
-                st.line_chart(
-                    chapter_df.set_index("payload.day.day_num")[stat],
-                    use_container_width=True,
-                )
-
 st.write("Run nº", os.getpid(), time.time())
 
 st.title("Capybara Go Inspired Simulator")
@@ -115,10 +84,10 @@ if st.button("Run Simulation"):
     log_df = log.get_logs_as_dataframe()
     st.dataframe(log_df)
 
-    log_df[log_df["action"] == Log_Action.ROUND_COMPLETED.value]
+    log_df[log_df["action"] == Log.Action.ROUND_COMPLETED.value]
 
     st.line_chart(
-        log_df[log_df["action"] == Log_Action.ROUND_COMPLETED.value].set_index("rounds_done")["chapter_level"],
+        log_df[log_df["action"] == Log.Action.ROUND_COMPLETED.value].set_index("rounds_done")["chapter_level"],
         use_container_width=True,
         x_label="Rounds Done",
         y_label="Chapter Level"
