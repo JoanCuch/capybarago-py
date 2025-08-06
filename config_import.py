@@ -38,8 +38,17 @@ class ConfigKeys(Enum):
     PLAYER_BEHAVIOR_SIMULATE = "simulate"
     PLAYER_BEHAVIOR_SESSIONS_PER_DAY = "sessions_per_day"
     PLAYER_BEHAVIOR_SESSION_TIME = "session_time"
-    TIMERS_EVENT_TYPE = "event_type"
-    TIMERS_EVENT_TIME_COST = "event_time_cost"
+    TIMERS_ACTION_TYPE = "event_type"
+    TIMERS_ACTION_TIME_COST = "event_time_cost"
+
+class ConfigTimerActions(Enum): 
+    EVENT_INCREASE_ATK = "increase_atk"
+    EVENT_INCREASE_DEF = "increase_def"
+    EVENT_INCREASE_MAX_HP = "increase_max_hp"
+    EVENT_RESTORE_HP = "restore_hp"
+    BATTLE_ENEMY_TURN = "battle_enemy_turn"
+    BATTLE_PLAYER_TURN = "battle_player_turn"
+    META_PROGRESSION = "meta_progression"
 
 
 @st.cache_data(ttl=300)  # cache for 5 minutes
@@ -54,11 +63,12 @@ def _fetch_worksheet_df(spreadsheet_name: str, worksheet_name: str) -> pd.DataFr
 
 @dataclass
 class Config:
+
     _player_config_df: pd.DataFrame
     _enemies_config_df: pd.DataFrame
     _chapters_config_df: pd.DataFrame
     _player_behavior_config_df: pd.DataFrame
-    _timers_df: pd.DataFrame
+    _action_time_costs_df: pd.DataFrame
 
 
     @staticmethod
@@ -73,14 +83,14 @@ class Config:
         enemies_config_df = _fetch_worksheet_df(ConfigSheets.SPREADSHEET_NAME.value, ConfigSheets.ENEMIES_SHEET_NAME.value)
         chapters_config_df = _fetch_worksheet_df(ConfigSheets.SPREADSHEET_NAME.value, ConfigSheets.CHAPTERS_SHEET_NAME.value )
         player_behavior_config_df = _fetch_worksheet_df(ConfigSheets.SPREADSHEET_NAME.value, ConfigSheets.PLAYER_BEHAVIOR_SHEET_NAME.value)
-        timers_df = _fetch_worksheet_df(ConfigSheets.SPREADSHEET_NAME.value, ConfigSheets.TIMERS_SHEET_NAME.value)
+        action_timers_df = _fetch_worksheet_df(ConfigSheets.SPREADSHEET_NAME.value, ConfigSheets.TIMERS_SHEET_NAME.value)
 
         config = Config(
             _player_config_df=player_config_df,
             _enemies_config_df=enemies_config_df,
             _chapters_config_df=chapters_config_df,
             _player_behavior_config_df=player_behavior_config_df,
-            _timers_df=timers_df
+            _action_time_costs_df=action_timers_df
         )
 
         return config
@@ -105,14 +115,14 @@ class Config:
         return self._player_behavior_config_df
     
     def get_timers_config(self) -> pd.DataFrame:
-        return self._timers_df
+        return self._action_time_costs_df
 
-    def reasign_config(self, new_player_config, new_enemies_config, new_chapters_config, new_player_behavior_config, new_timers_df):
+    def reasign_config(self, new_player_config, new_enemies_config, new_chapters_config, new_player_behavior_config, new_action_time_costs_df):
         self._player_config_df = new_player_config
         self._enemies_config_df = new_enemies_config
         self._chapters_config_df = new_chapters_config
         self._player_behavior_config_df = new_player_behavior_config
-        self._timers_df = new_timers_df
+        self._action_time_costs_df = new_action_time_costs_df
 
 
 def connect_to_API() -> gspread.Client:

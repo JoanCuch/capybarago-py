@@ -74,20 +74,20 @@ edited_player_config = st.data_editor(config.get_player_config())
 edited_enemies_config = st.data_editor(config.get_enemies_config())
 edited_chapters_config = st.data_editor(config.get_all_chapters_config())
 edited_player_behavior_config = st.data_editor(config.get_player_behavior_config())
-edited_timers_config = st.data_editor(config.get_timers_config())
+edited_action_time_costs_config = st.data_editor(config.get_timers_config())
 
 # Simulation
 if "simulation_done" not in st.session_state:
     st.session_state.simulation_done = False
 
 if st.button("Run Simulation"):
-    
+
     config.reasign_config(
         new_player_config=edited_player_config,
         new_enemies_config=edited_enemies_config,
         new_chapters_config=edited_chapters_config,
         new_player_behavior_config=edited_player_behavior_config,
-        new_timers_df=edited_timers_config
+        new_action_time_costs_df=edited_action_time_costs_config
     )
 
     model = Model.initialize(config)
