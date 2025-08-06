@@ -1,70 +1,60 @@
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass
 from typing import List, Dict, Any, Optional
 import pandas as pd
 import config_import as config_import
 from config_import import ConfigKeys, Config, ConfigTimerActions
 from enum import Enum
-from logger import Log
-import streamlit as st
+from auxiliar import Log, Timer
 
-# --------------------------
-#     Auxiliary Classes
-# -------------------------- 
-
+# Controls the time the players spends in the game
 @dataclass
-class Timer:
-    total_time: float
-    session_time: float
-    day_session_num: int
+class PlayerBehavior:
+    log: Log
+    timer: Timer
+    timers_config: pd.DataFrame
 
+    player_session_time: float
+    player_sessions_per_day: int
+    
     @staticmethod
-    def initialize(player_behavior: pd.DataFrame) -> 'Timer':
-        current_total_time = 0
-        current_session_time = 0
-        day_session_num = 1
+    def initialize(player_behavior_config: pd.DataFrame, timers_config: pd.DataFrame, log:Log, timer: Timer) -> 'PlayerBehavior':
 
-        return Timer(total_time=current_total_time,
-                     session_time=current_session_time,
-                     day_session_num=day_session_num)
-    
-    def get_total_time(self) -> float:
-        return self.total_time 
+        selected_player_behavior = player_behavior_config[player_behavior_config[ConfigKeys.PLAYER_BEHAVIOR_SIMULATE.value] == "TRUE"].iloc[0]
+        player_session_time = float(selected_player_behavior.loc[ConfigKeys.PLAYER_BEHAVIOR_SESSION_TIME.value])
+        player_sessions_per_day = int(selected_player_behavior.loc[ConfigKeys.PLAYER_BEHAVIOR_SESSIONS_PER_DAY.value])
 
-    def get_session_time(self) -> float:
-        return self.session_time 
-      
-    def get_current_day(self) -> int:
-        return round(self.total_time // 1440) +1
-    
-    def get_current_session(self) -> int:
-        return self.day_session_num
-    
-    def get_log_stats(self) -> Dict[str, Any]:
-        return {
-            "day": self.get_current_day(),
-            "day_session": self.get_current_session(),
-            "session_time": self.session_time,
-        }
+        return PlayerBehavior(
+            log=log,
+            timer=timer,
+            player_session_time=player_session_time,
+            player_sessions_per_day=player_sessions_per_day,
+            timers_config=timers_config,
+        )
 
-    def set_new_day(self):
-        minutes_to_complete = 1440 - (self.total_time % 1440) + 1 # +1 to ensure we get to a new day
-        self.total_time += minutes_to_complete
-        self.day_session_num = 0
-        self.set_new_session()
+    def check_session(self):
+
+        # If session time > player behavior session, start a new session
+        # If session number > player behavior sessions per day, pass a day
+        if self.timer.get_session_time() > self.player_session_time:
+            
+            if self.timer.get_day_session() == self.player_sessions_per_day:
+                self.timer.set_new_day()
+                self.timer.set_new_session()
+                self.log.log_player_new_day(
+                    self.timer.get_day())  
+            else:
+                self.timer.set_new_session()
+                self.log.log_player_new_session(
+                    session_num=self.timer.get_day_session(),
+                    day_num=self.timer.get_day())
+                
         return
     
-    def set_new_session(self):
-        self.session_time = 0
-        self.day_session_num += 1
+    def time_spent(self, time: float):
+        self.timer.set_time_increment(time)
+        self.check_session()
         return
-    
-    def set_time_increment(self, minutes: float):
-        self.total_time += minutes
-        self.session_time += minutes
-        return
-    
 
-    
 
 # -----------------------------
 #     Meta Progression Classes
@@ -99,7 +89,7 @@ class Meta_stat:
 class Player_meta_progression:
 
     log: Log
-    timer: Timer
+    player_behavior: PlayerBehavior
     action_time_costs: Dict[str, float]
 
     stat_atk: Meta_stat
@@ -111,7 +101,7 @@ class Player_meta_progression:
 
 
     @staticmethod
-    def initialize(player_config_df, log: Log, timer: Timer, action_time_costs: Dict[str, float]) -> 'Player_meta_progression':
+    def initialize(player_config_df, log: Log, player_behavior: PlayerBehavior, action_time_costs: Dict[str, float]) -> 'Player_meta_progression':
         stat_atk = Meta_stat(
             name=get_config_value(player_config_df, ConfigKeys.STAT_NAME, ConfigKeys.STAT_ATK, ConfigKeys.STAT_NAME),
             initial_value=get_config_value(player_config_df, ConfigKeys.STAT_NAME,ConfigKeys.STAT_ATK, ConfigKeys.STAT_INITIAL_VALUE),
@@ -144,7 +134,7 @@ class Player_meta_progression:
 
         new_meta = Player_meta_progression(
             log=log,
-            timer=timer,
+            player_behavior=player_behavior,
             action_time_costs=action_time_costs,
             stat_atk=stat_atk,
             stat_def=stat_def,
@@ -170,9 +160,9 @@ class Player_meta_progression:
         if self.gold >= stat.get_cost():
             self.gold -= stat.get_cost()
             stat.level_up()
-            self.log.log_stat_level_up(self.timer.get_log_stats(), stat.name, stat.get_level())
+            self.log.log_stat_level_up(stat.name, stat.get_level())
 
-        self.timer.set_time_increment(self.action_time_costs[ConfigTimerActions.META_PROGRESSION.value])
+        self.player_behavior.time_spent(self.action_time_costs[ConfigTimerActions.META_PROGRESSION.value])
 
         return
 
@@ -269,7 +259,7 @@ class Day:
         RESTORE_HP = "restore_hp"
         BATTLE = "battle"    
     log: Log
-    timer: Timer
+    playerbehavior: PlayerBehavior
     action_time_costs: Dict[str, float]
     chapter_num: int
     day_num: int
@@ -279,7 +269,7 @@ class Day:
     event_enemy: Optional[EnemyCharacter]
 
     @staticmethod
-    def initialize(day_config, enemies_config, log: Log, timer: Timer, action_time_costs: Dict[str, float]) -> 'Day':
+    def initialize(day_config, enemies_config, log: Log, playerbehavior: PlayerBehavior, action_time_costs: Dict[str, float]) -> 'Day':
         event_name = day_config[ConfigKeys.CHAPTER_DAILY_EVENT.value]
         event_type = Day.EventType(event_name)
         event_param = day_config[ConfigKeys.CHAPTER_DAILY_EVENT_PARAM.value]
@@ -298,7 +288,7 @@ class Day:
 
         new_day =  Day(
             log=log,
-            timer=timer,
+            playerbehavior=playerbehavior,
             action_time_costs=action_time_costs,
             chapter_num=chapter_num,
             day_num=day_num,
@@ -316,61 +306,57 @@ class Day:
 
     def simulate(self, player_character: Player_Character, meta_progression: Player_meta_progression):
 
-        match self.event_type:
-            case Day.EventType.INCREASE_ATK:
-                player_character.modify_atk(self.event_param)
-                meta_progression.add_gold(self.gold_reward)
-                self.timer.set_time_increment(self.action_time_costs[ConfigTimerActions.EVENT_INCREASE_ATK.value])
-            case Day.EventType.INCREASE_DEF:
-                player_character.modify_def(self.event_param)
-                meta_progression.add_gold(self.gold_reward)
-                self.timer.set_time_increment(self.action_time_costs[ConfigTimerActions.EVENT_INCREASE_DEF.value])
-            case Day.EventType.INCREASE_MAX_HP:
-                player_character.modify_max_hp(self.event_param)
-                meta_progression.add_gold(self.gold_reward)
-                self.timer.set_time_increment(self.action_time_costs[ConfigTimerActions.EVENT_INCREASE_MAX_HP.value])
-            case Day.EventType.RESTORE_HP:
-                player_character.modify_hp(self.event_param)
-                meta_progression.add_gold(self.gold_reward)
-                self.timer.set_time_increment(self.action_time_costs[ConfigTimerActions.EVENT_RESTORE_HP.value])
-            case Day.EventType.BATTLE:
-                if self.event_enemy is None:
-                    raise ValueError("Battle event requires an enemy character.")
-                self.simulate_battle(player_character, self.event_enemy, self.log, self.timer)
-                if(not player_character.is_dead()):
-                    meta_progression.add_gold(self.gold_reward)
-            case _:
-                raise ValueError(f"Unknown event type: {self._event_type}")
-
         self.log.log_day_completed(
-            self.timer.get_log_stats(),
             chapter_num=self.chapter_num,
             day_num=self.day_num,
             event_type=self.event_type.value,
             event_param=self.event_param
         )
+        
+        match self.event_type:
+            case Day.EventType.INCREASE_ATK:
+                player_character.modify_atk(self.event_param)
+                meta_progression.add_gold(self.gold_reward)
+                self.playerbehavior.time_spent(self.action_time_costs[ConfigTimerActions.EVENT_INCREASE_ATK.value])
+            case Day.EventType.INCREASE_DEF:
+                player_character.modify_def(self.event_param)
+                meta_progression.add_gold(self.gold_reward)
+                self.playerbehavior.time_spent(self.action_time_costs[ConfigTimerActions.EVENT_INCREASE_DEF.value])
+            case Day.EventType.INCREASE_MAX_HP:
+                player_character.modify_max_hp(self.event_param)
+                meta_progression.add_gold(self.gold_reward)
+                self.playerbehavior.time_spent(self.action_time_costs[ConfigTimerActions.EVENT_INCREASE_MAX_HP.value])
+            case Day.EventType.RESTORE_HP:
+                player_character.modify_hp(self.event_param)
+                meta_progression.add_gold(self.gold_reward)
+                self.playerbehavior.time_spent(self.action_time_costs[ConfigTimerActions.EVENT_RESTORE_HP.value])
+            case Day.EventType.BATTLE:
+                if self.event_enemy is None:
+                    raise ValueError("Battle event requires an enemy character.")
+                self.simulate_battle(player_character, self.event_enemy, self.log)
+                if(not player_character.is_dead()):
+                    meta_progression.add_gold(self.gold_reward)
+            case _:
+                raise ValueError(f"Unknown event type: {self._event_type}")
 
         return
 
-    def simulate_battle(self, player_character: Player_Character, enemy: EnemyCharacter, log: Log, timer: Timer):
+    def simulate_battle(self, player_character: Player_Character, enemy: EnemyCharacter, log: Log):
 
         while not player_character.is_dead() and not enemy.is_dead():
             # Player attacks enemy
             damage_to_enemy = max(0, player_character.stat_atk - enemy.stat_def)
             enemy.modify_hp(-damage_to_enemy)
-            timer.set_time_increment(self.action_time_costs[ConfigTimerActions.BATTLE_PLAYER_TURN.value])
-
             log.log_player_attack(
-                timer.get_log_stats(),
                 enemy_type=enemy.type.value,
                 damage=damage_to_enemy,
                 enemy_hp=enemy.stat_hp
             )
+            self.playerbehavior.time_spent(self.action_time_costs[ConfigTimerActions.BATTLE_PLAYER_TURN.value])
 
             if enemy.is_dead():
 
                 log.log_battle_victory(
-                    timer.get_log_stats(),
                     enemy_type=enemy.type.value,
                     player_hp=player_character.stat_hp
                 )
@@ -379,19 +365,16 @@ class Day:
             # Enemy attacks player
             damage_to_player = max(0, enemy.stat_atk - player_character.stat_def)
             player_character.modify_hp(-damage_to_player)
-            self.timer.set_time_increment(self.action_time_costs[ConfigTimerActions.BATTLE_ENEMY_TURN.value])
-
             log.log_enemy_attack(
-                timer.get_log_stats(),
                 enemy_type=enemy.type.value,
                 damage=damage_to_player,
                 player_hp=player_character.stat_hp
             )
+            self.playerbehavior.time_spent(self.action_time_costs[ConfigTimerActions.BATTLE_ENEMY_TURN.value])
 
             if player_character.is_dead():
 
                 log.log_battle_defeat(
-                    timer.get_log_stats(),
                     enemy_type=enemy.type.value,
                     enemy_hp= enemy.stat_hp
                 )
@@ -408,7 +391,7 @@ class Day:
 class Chapter:
 
     log: Log
-    timer: Timer
+    player_behavior: PlayerBehavior
     action_time_costs: Dict[str, float]
 
     days: List[Day]
@@ -416,7 +399,7 @@ class Chapter:
     meta_progression: Player_meta_progression
 
     @staticmethod
-    def initialize(chapter_config_df, meta_progression: Player_meta_progression, enemies_config_df, log: Log, timer: Timer, action_time_costs: Dict[str, float]) -> 'Chapter':
+    def initialize(chapter_config_df, meta_progression: Player_meta_progression, enemies_config_df, log: Log, player_behavior: PlayerBehavior, action_time_costs: Dict[str, float]) -> 'Chapter':
 
         #Instantiate the player characteer
         player_character = Player_Character.initialize(
@@ -429,13 +412,13 @@ class Chapter:
         #Instantiate the day list with all the events
         days: List[Day] = []
         for index,day_config in chapter_config_df.iterrows():
-            new_day = Day.initialize(day_config, enemies_config_df, log, timer, action_time_costs)
+            new_day = Day.initialize(day_config, enemies_config_df, log, player_behavior , action_time_costs)
             days.append(new_day)
     
         #Create the new chapter
         chapter = Chapter(
             log=log,
-            timer=timer,
+            player_behavior=player_behavior,
             action_time_costs=action_time_costs,
             days=days,
             player_character=player_character,
@@ -456,9 +439,9 @@ class Chapter:
                 break
 
         if victory:
-            self.log.log_chapter_victory(self.timer.get_log_stats(),self.meta_progression.chapter_level)
+            self.log.log_chapter_victory(self.meta_progression.chapter_level)
         else:
-            self.log.log_chapter_defeat(self.timer.get_log_stats(),self.meta_progression.chapter_level)
+            self.log.log_chapter_defeat(self.meta_progression.chapter_level)
 
         return victory
 
@@ -475,47 +458,6 @@ def get_config_value_str_row(config_df, row: ConfigKeys, row_key: str, column_ke
 # -----------------------------
 
 
-@dataclass
-class PlayerBehavior:
-    log: Log
-    timer: Timer
-    timers_config: pd.DataFrame
-
-    player_session_time: float
-    player_sessions_per_day: int
-    
-    @staticmethod
-    def initialize(player_behavior_config: pd.DataFrame, timers_config: pd.DataFrame, log:Log, timer: Timer) -> 'PlayerBehavior':
-
-        selected_player_behavior = player_behavior_config[player_behavior_config[ConfigKeys.PLAYER_BEHAVIOR_SIMULATE.value] == "TRUE"].iloc[0]
-        player_session_time = float(selected_player_behavior.loc[ConfigKeys.PLAYER_BEHAVIOR_SESSION_TIME.value])
-        player_sessions_per_day = int(selected_player_behavior.loc[ConfigKeys.PLAYER_BEHAVIOR_SESSIONS_PER_DAY.value])
-
-        return PlayerBehavior(
-            log=log,
-            timer=timer,
-            player_session_time=player_session_time,
-            player_sessions_per_day=player_sessions_per_day,
-            timers_config=timers_config,
-        )
-
-    def simulate(self):
-
-        # If session time > player behavior session, start a new session
-        # If session number > player behavior sessions per day, pass a day
-        if self.timer.get_session_time() > self.player_session_time:
-            self.timer.set_new_session()
-            self.log.log_player_new_session(
-                self.timer.get_log_stats(),
-                session_num=self.timer.day_session_num,
-                day_num=self.timer.get_current_day())    
-        elif self.timer.get_current_session() > self.player_sessions_per_day:
-            self.timer.set_new_day()
-            self.log.log_player_new_day(
-                self.timer.get_log_stats(),
-                self.timer.get_current_day())  
-
-        return
         
         
 @dataclass
@@ -533,8 +475,8 @@ class Model:
     @staticmethod
     def initialize(config: Config) -> 'Model':
 
-        log = Log.initialize()
         timer = Timer.initialize(config.get_player_behavior_config())
+        log = Log.initialize(timer)
         player_behavior = PlayerBehavior.initialize(config.get_player_behavior_config(), config.get_timers_config(), log, timer)
         player_config = config.get_player_config()
 
@@ -543,7 +485,7 @@ class Model:
             for _, row in config.get_timers_config().iterrows()
         }
 
-        meta_progression = Player_meta_progression.initialize(player_config, log, timer, action_time_costs)
+        meta_progression = Player_meta_progression.initialize(player_config, log, player_behavior, action_time_costs)
 
         
 
@@ -568,21 +510,21 @@ class Model:
             assert rounds_done < 100, "Possible infinite loop detected"
 
             # Player Behavior Simulation
-            self.player_behavior.simulate()
+            #self.player_behavior.check_session()
 
             # Chapter Simulation
             chapter_level = self.meta_progression.chapter_level
             chapter_config = self.config.get_chapter_config(chapter_level)
-            chapter = Chapter.initialize(chapter_config, self.meta_progression, enemies_config, self.log, self.timer, self.action_time_costs)
+            chapter = Chapter.initialize(chapter_config, self.meta_progression, enemies_config, self.log, self.player_behavior, self.action_time_costs)
             victory_bool = chapter.simulate()
 
             # Player Behavior Simulation
-            self.player_behavior.simulate()
+            #self.player_behavior.check_session()
 
             # Meta Progression Simulation
             self.meta_progression.simulate()
 
-            self.log.log_round_completed(self.timer.get_log_stats(), chapter_level, victory_bool, rounds_done)
+            self.log.log_round_completed(chapter_level, victory_bool, rounds_done)
 
             if victory_bool:
                 self.meta_progression.chapter_level += 1

@@ -4,7 +4,7 @@ from config_import import Config, ConfigKeys
 from model import Model
 import matplotlib.pyplot as plt
 from typing import Any, Dict, cast
-from logger import Log
+from auxiliar import Log
 import debugpy
 
 
