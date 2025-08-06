@@ -12,6 +12,8 @@ class ConfigSheets(Enum):
     PLAYER_SHEET_NAME = "PLAYER"
     ENEMIES_SHEET_NAME = "ENEMIES"
     CHAPTERS_SHEET_NAME = "CHAPTERS"
+    PLAYER_BEHAVIOR_SHEET_NAME = "PLAYER_BEHAVIOR"
+    TIMERS_SHEET_NAME = "TIMERS"
 
 class ConfigKeys(Enum):
     STAT_NAME = "stat_name"
@@ -32,6 +34,12 @@ class ConfigKeys(Enum):
     CHAPTER_DAILY_EVENT = "daily_event"
     CHAPTER_DAILY_EVENT_PARAM = "daily_event_param"
     CHAPTER_DAILY_GOLD_REWARD = "gold_reward"
+    PLAYER_BEHAVIOR_PLAYER_TYPE = "player_type"
+    PLAYER_BEHAVIOR_SIMULATE = "simulate"
+    PLAYER_BEHAVIOR_SESSIONS_PER_DAY = "sessions_per_day"
+    PLAYER_BEHAVIOR_SESSION_TIME = "session_time"
+    TIMERS_EVENT_TYPE = "event_type"
+    TIMERS_EVENT_TIME_COST = "event_time_cost"
 
 
 @st.cache_data(ttl=300)  # cache for 5 minutes
@@ -39,11 +47,6 @@ def _fetch_worksheet_df(spreadsheet_name: str, worksheet_name: str) -> pd.DataFr
     """
     Return the worksheet as DataFrame, caching the result to spare Google API calls.
     Parameters
-    ----------
-    spreadsheet_name : str
-        The Google Sheets file name.
-    worksheet_name : str
-        The tab to fetch inside that file.
     """
     client = connect_to_API()
     sheet = client.open(spreadsheet_name)
@@ -54,6 +57,9 @@ class Config:
     _player_config_df: pd.DataFrame
     _enemies_config_df: pd.DataFrame
     _chapters_config_df: pd.DataFrame
+    _player_behavior_config_df: pd.DataFrame
+    _timers_df: pd.DataFrame
+
 
     @staticmethod
     def initialize() -> 'Config':
@@ -63,20 +69,18 @@ class Config:
         # Get the spreadsheet and turn into DataFrames
         sheet = client.open(ConfigSheets.SPREADSHEET_NAME.value)
   
-        player_config_df = _fetch_worksheet_df(
-            ConfigSheets.SPREADSHEET_NAME.value, ConfigSheets.PLAYER_SHEET_NAME.value
-        )
-        enemies_config_df = _fetch_worksheet_df(
-            ConfigSheets.SPREADSHEET_NAME.value, ConfigSheets.ENEMIES_SHEET_NAME.value
-        )
-        chapters_config_df = _fetch_worksheet_df(
-            ConfigSheets.SPREADSHEET_NAME.value, ConfigSheets.CHAPTERS_SHEET_NAME.value
-        )
+        player_config_df = _fetch_worksheet_df( ConfigSheets.SPREADSHEET_NAME.value, ConfigSheets.PLAYER_SHEET_NAME.value)
+        enemies_config_df = _fetch_worksheet_df(ConfigSheets.SPREADSHEET_NAME.value, ConfigSheets.ENEMIES_SHEET_NAME.value)
+        chapters_config_df = _fetch_worksheet_df(ConfigSheets.SPREADSHEET_NAME.value, ConfigSheets.CHAPTERS_SHEET_NAME.value )
+        player_behavior_config_df = _fetch_worksheet_df(ConfigSheets.SPREADSHEET_NAME.value, ConfigSheets.PLAYER_BEHAVIOR_SHEET_NAME.value)
+        timers_df = _fetch_worksheet_df(ConfigSheets.SPREADSHEET_NAME.value, ConfigSheets.TIMERS_SHEET_NAME.value)
 
         config = Config(
             _player_config_df=player_config_df,
             _enemies_config_df=enemies_config_df,
-            _chapters_config_df=chapters_config_df
+            _chapters_config_df=chapters_config_df,
+            _player_behavior_config_df=player_behavior_config_df,
+            _timers_df=timers_df
         )
 
         return config
@@ -97,10 +101,18 @@ class Config:
     def get_enemies_config(self) -> pd.DataFrame:
         return self._enemies_config_df
     
-    def reasign_config(self, new_player_config, new_enemies_config, new_chapters_config):
+    def get_player_behavior_config(self) -> pd.DataFrame:
+        return self._player_behavior_config_df
+    
+    def get_timers_config(self) -> pd.DataFrame:
+        return self._timers_df
+
+    def reasign_config(self, new_player_config, new_enemies_config, new_chapters_config, new_player_behavior_config, new_timers_df):
         self._player_config_df = new_player_config
         self._enemies_config_df = new_enemies_config
         self._chapters_config_df = new_chapters_config
+        self._player_behavior_config_df = new_player_behavior_config
+        self._timers_df = new_timers_df
 
 
 def connect_to_API() -> gspread.Client:
