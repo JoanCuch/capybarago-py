@@ -42,7 +42,8 @@ class Timer:
     def set_new_day(self):
         minutes_to_complete = 1440 - (self.total_time % 1440) + 1 # +1 to ensure we get to a new day
         self.total_time += minutes_to_complete
-        self.day_session_num = 1
+        self.day_session_num = 0
+        self.set_new_session()
         return
     
     def set_new_session(self):

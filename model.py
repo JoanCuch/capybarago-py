@@ -37,9 +37,8 @@ class PlayerBehavior:
         # If session number > player behavior sessions per day, pass a day
         if self.timer.get_session_time() > self.player_session_time:
             
-            if self.timer.get_day_session() == self.player_sessions_per_day:
+            if self.timer.get_day_session() >= self.player_sessions_per_day:
                 self.timer.set_new_day()
-                self.timer.set_new_session()
                 self.log.log_player_new_day(
                     self.timer.get_day())  
             else:
@@ -507,7 +506,7 @@ class Model:
 
         while(self.meta_progression.chapter_level<=total_chapters):
             rounds_done+=1
-            assert rounds_done < 100, "Possible infinite loop detected"
+            assert rounds_done < 1000, "Possible infinite loop detected"
 
             # Player Behavior Simulation
             #self.player_behavior.check_session()

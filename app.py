@@ -8,12 +8,20 @@ from auxiliar import Log
 
 def modify_config():
     with st.form("edit_config"):
-        st.write("Modify the config")
-        edited_player_config = st.data_editor(st.session_state.config.get_player_config())
-        edited_enemies_config = st.data_editor(st.session_state.config.get_enemies_config())
-        edited_chapters_config = st.data_editor(st.session_state.config.get_all_chapters_config())
+        st.header("Config Modification")
+        st.write("You can modify the configuration of the simulation here. Make sure to save your changes.")
+
+        st.subheader("Player Behavior Config")
         edited_player_behavior_config = st.data_editor(st.session_state.config.get_player_behavior_config())
+        st.subheader("Action Time Costs Config")
         edited_action_time_costs_config = st.data_editor(st.session_state.config.get_timers_config())
+        st.subheader("Player Config")
+        edited_player_config = st.data_editor(st.session_state.config.get_player_config())
+        st.subheader("Enemies Config")
+        edited_enemies_config = st.data_editor(st.session_state.config.get_enemies_config())
+        st.subheader("Chapters Config")
+        edited_chapters_config = st.data_editor(st.session_state.config.get_all_chapters_config())
+        
         if st.form_submit_button('Submit my picks'):
             st.session_state.config.reasign_config(
                 new_player_config=edited_player_config,
