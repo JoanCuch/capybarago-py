@@ -65,6 +65,10 @@ with st.sidebar:
 if 'config' not in st.session_state:
     st.session_state.config = Config.initialize()
 
+# Initialise storage for logs (only first run)
+if 'log_df' not in st.session_state:
+    st.session_state.log_df = None
+
 if st.session_state.modify_config:
     modify_config()
     
@@ -72,26 +76,30 @@ if st.session_state.modify_config:
 player_type_select()
 
 if st.button("Run Simulation"):
+    # Run simulation once and store results
     st.session_state.model = Model.initialize(st.session_state.config)
     st.session_state.log = st.session_state.model.simulate()
-    log_df = st.session_state.log.get_logs_as_dataframe()
-    st.dataframe(log_df)
-
-    log_df[log_df["action"] == Log.Action.ROUND_COMPLETED.value]
-
-    st.line_chart(
-        log_df[log_df["action"] == Log.Action.ROUND_COMPLETED.value].set_index("rounds_done")["chapter_level"],
-        use_container_width=True,
-        x_label="Rounds Done",
-        y_label="Chapter Level"
-    )
-
-    action_options = log_df["action"].unique().tolist()
-    selected_action = st.selectbox("Select Action", action_options, index=0)
-
-
-    filtered_df = log_df[log_df["action"].isin([selected_action])]
-    st.dataframe(filtered_df, hide_index=True,height=700)
+    st.session_state.log_df = st.session_state.log.get_logs_as_dataframe()
 
     
+if st.session_state.log_df is not None:
+    log_df = st.session_state.log_df
 
+    # st.line_chart(
+    #     log_df[log_df["action"] == Log.Action.ROUND_COMPLETED.value]
+    #         .set_index("rounds_done")["chapter_level"],
+    #     use_container_width=True,
+    #     x_label="Rounds Done",
+    #     y_label="Chapter Level"
+    # )
+
+    action_options = log_df["action"].unique().tolist()
+    selected_actions = st.multiselect(
+        "Select Actions",
+        action_options,
+        default=action_options,
+        key="action_multiselect"
+    )
+
+    filtered_df = log_df[log_df["action"].isin(selected_actions)]
+    st.dataframe(filtered_df, hide_index=True, height=700)
