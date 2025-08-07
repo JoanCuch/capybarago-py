@@ -51,12 +51,8 @@ class ConfigTimerActions(Enum):
     META_PROGRESSION = "meta_progression"
 
 
-@st.cache_data(ttl=300)  # cache for 5 minutes
-def _fetch_worksheet_df(spreadsheet_name: str, worksheet_name: str) -> pd.DataFrame:
-    """
-    Return the worksheet as DataFrame, caching the result to spare Google API calls.
-    Parameters
-    """
+#@st.cache_data(ttl=300)  # cache for 5 minutes
+def import_worksheet(spreadsheet_name: str, worksheet_name: str) -> pd.DataFrame:
     client = connect_to_API()
     sheet = client.open(spreadsheet_name)
     return pd.DataFrame(sheet.worksheet(worksheet_name).get_all_records())
@@ -72,6 +68,7 @@ class Config:
 
 
     @staticmethod
+    @st.cache_data(ttl=3600)
     def initialize() -> 'Config':
         # Connect to Google Sheets
         client = connect_to_API()
@@ -79,11 +76,11 @@ class Config:
         # Get the spreadsheet and turn into DataFrames
         sheet = client.open(ConfigSheets.SPREADSHEET_NAME.value)
   
-        player_config_df = _fetch_worksheet_df( ConfigSheets.SPREADSHEET_NAME.value, ConfigSheets.PLAYER_SHEET_NAME.value)
-        enemies_config_df = _fetch_worksheet_df(ConfigSheets.SPREADSHEET_NAME.value, ConfigSheets.ENEMIES_SHEET_NAME.value)
-        chapters_config_df = _fetch_worksheet_df(ConfigSheets.SPREADSHEET_NAME.value, ConfigSheets.CHAPTERS_SHEET_NAME.value )
-        player_behavior_config_df = _fetch_worksheet_df(ConfigSheets.SPREADSHEET_NAME.value, ConfigSheets.PLAYER_BEHAVIOR_SHEET_NAME.value)
-        action_timers_df = _fetch_worksheet_df(ConfigSheets.SPREADSHEET_NAME.value, ConfigSheets.TIMERS_SHEET_NAME.value)
+        player_config_df = import_worksheet( ConfigSheets.SPREADSHEET_NAME.value, ConfigSheets.PLAYER_SHEET_NAME.value)
+        enemies_config_df = import_worksheet(ConfigSheets.SPREADSHEET_NAME.value, ConfigSheets.ENEMIES_SHEET_NAME.value)
+        chapters_config_df = import_worksheet(ConfigSheets.SPREADSHEET_NAME.value, ConfigSheets.CHAPTERS_SHEET_NAME.value )
+        player_behavior_config_df = import_worksheet(ConfigSheets.SPREADSHEET_NAME.value, ConfigSheets.PLAYER_BEHAVIOR_SHEET_NAME.value)
+        action_timers_df = import_worksheet(ConfigSheets.SPREADSHEET_NAME.value, ConfigSheets.TIMERS_SHEET_NAME.value)
 
         config = Config(
             _player_config_df=player_config_df,
