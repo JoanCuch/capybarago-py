@@ -113,9 +113,9 @@ class Log:
     ## ------ Action Logs ------
     def log_round_completed(self,chapter_level: int, victory: bool, rounds_done: int):
         log_entry = {
-                "day": self.timer.get_day(),
-                "day_session": self.timer.get_day_session(),
-                "session_time": self.timer.get_session_time(),
+                "timer_day": self.timer.get_day(),
+                "timer_day_session": self.timer.get_day_session(),
+                "timer_session_time": self.timer.get_session_time(),
                 "action": self.Action.ROUND_COMPLETED.value,
                 "message": f"Round {rounds_done} completed: Chapter {chapter_level} ended in {'Victory' if victory else 'Defeat'}",
                 "rounds_done": rounds_done,
@@ -127,9 +127,9 @@ class Log:
 
     def log_stat_level_up(self, stat_name: str, new_level: int):
         log_entry = {
-            "day": self.timer.get_day(),
-            "day_session": self.timer.get_day_session(),
-            "session_time": self.timer.get_session_time(),
+            "timer_day": self.timer.get_day(),
+            "timer_day_session": self.timer.get_day_session(),
+            "timer_session_time": self.timer.get_session_time(),
             "action": self.Action.META_STAT_LEVEL_UP.value,
             "message": f"Stat {stat_name} leveled up to {new_level}",
             "stat_name": stat_name,
@@ -142,9 +142,9 @@ class Log:
                           player_hp: int, player_max_hp:int, player_atk: int, player_def: int):
         
         log_entry = {
-            "day": self.timer.get_day(),
-            "day_session": self.timer.get_day_session(),
-            "session_time": self.timer.get_session_time(),
+            "timer_day": self.timer.get_day(),
+            "timer_day_session": self.timer.get_day_session(),
+            "timer_session_time": self.timer.get_session_time(),
             "action": self.Action.DAY_COMPLETED.value,
             "message": f"Day {day_num} completed for Chapter {chapter_num} with event {event_type}",
             "chapter": chapter_num,
@@ -160,9 +160,9 @@ class Log:
 
     def log_chapter_victory(self, chapter_num: int):
         log_entry = {
-            "day": self.timer.get_day(),
-            "day_session": self.timer.get_day_session(),
-            "session_time": self.timer.get_session_time(),
+            "timer_day": self.timer.get_day(),
+            "timer_day_session": self.timer.get_day_session(),
+            "timer_session_time": self.timer.get_session_time(),
             "action": self.Action.CHAPTER_VICTORY.value,
             "message": f"Chapter {chapter_num} completed with victory",
             "chapter_num": chapter_num
@@ -171,20 +171,25 @@ class Log:
 
     def log_chapter_defeat(self, chapter_num: int):
         log_entry = {
-            "day": self.timer.get_day(),
-            "day_session": self.timer.get_day_session(),
-            "session_time": self.timer.get_session_time(),
+            "timer_day": self.timer.get_day(),
+            "timer_day_session": self.timer.get_day_session(),
+            "timer_session_time": self.timer.get_session_time(),
             "action": self.Action.CHAPTER_DEFEAT.value,
             "message": f"Chapter {chapter_num} completed with defeat",
             "chapter_num": chapter_num
         }
         self.logs.append(log_entry)
 
-    def log_player_attack(self,damage: int, enemy_type: str, enemy_hp: int):
+    def log_player_attack(self,chapter:int, chapter_run_try:int, day:int, combat_round: int,damage: int, enemy_type: str, enemy_hp: int):
         log_entry = {
-            "day": self.timer.get_day(),
-            "day_session": self.timer.get_day_session(),
-            "session_time": self.timer.get_session_time(),
+            "chapter": chapter,
+            "chapter_run_try": chapter_run_try,
+            "day": day,
+            "combat_round": combat_round,
+            "timer_total_time": self.timer.get_total_time(),
+            "timer_day": self.timer.get_day(),
+            "timer_day_session": self.timer.get_day_session(),
+            "timer_session_time": self.timer.get_session_time(),
             "action": self.Action.PLAYER_ATTACK.value,
             "message": f"Player attacked {enemy_type} for {damage} damage",
             "damage": damage,
@@ -193,36 +198,44 @@ class Log:
         }
         self.logs.append(log_entry)
 
-    def log_enemy_attack(self, damage: int, enemy_type: str, player_hp: int):
+    def log_enemy_attack(self, chapter:int, chapter_run_try: int, day:int, combat_round: int, damage: int, enemy_type: str, player_hp: int, enemy_hp: int):
         log_entry = {
-            "day": self.timer.get_day(),
-            "day_session": self.timer.get_day_session(),
-            "session_time": self.timer.get_session_time(),
+            "chapter": chapter,
+            "chapter_run_try": chapter_run_try,
+            "day": day,
+            "combat_round": combat_round,
+            "timer_total_time": self.timer.get_total_time(),
+            "timer_day": self.timer.get_day(),
+            "timer_day_session": self.timer.get_day_session(),
+            "timer_session_time": self.timer.get_session_time(),
             "action": self.Action.ENEMY_ATTACK.value,
             "message": f"{enemy_type} attacked player for {damage} damage",
-            "damage": damage,
+            "enemy_damage": damage,
             "player_hp": player_hp,
+            "enemy_hp": enemy_hp,
             "enemy_type": enemy_type
         }
         self.logs.append(log_entry)
 
-    def log_battle_victory(self, enemy_type: str, player_hp: int):
+    def log_battle_victory(self, player_damage:int, enemy_type: str, player_hp: int, enemy_hp: int):
         log_entry = {
-            "day": self.timer.get_day(),
-            "day_session": self.timer.get_day_session(),
-            "session_time": self.timer.get_session_time(),
+            "timer_day": self.timer.get_day(),
+            "timer_day_session": self.timer.get_day_session(),
+            "timer_session_time": self.timer.get_session_time(),
             "action": self.Action.BATTLE_VICTORY.value,
             "message": f"Battle won against {enemy_type}",
-            "enemy_type": enemy_type,
-            "player_hp": player_hp
+            "player_damage": player_damage, 
+            "player_hp": player_hp,
+            "enemy_hp": enemy_hp,
+            "enemy_type": enemy_type
         }
         self.logs.append(log_entry)
 
     def log_battle_defeat(self, enemy_type: str, enemy_hp: int):
         log_entry = {
-            "day": self.timer.get_day(),
-            "day_session": self.timer.get_day_session(),
-            "session_time": self.timer.get_session_time(),
+            "timer_day": self.timer.get_day(),
+            "timer_day_session": self.timer.get_day_session(),
+            "timer_session_time": self.timer.get_session_time(),
             "action": self.Action.BATTLE_DEFEAT.value,
             "message": f"Battle lost against {enemy_type}",
             "enemy_type": enemy_type,
@@ -232,9 +245,9 @@ class Log:
 
     def log_player_new_session(self, session_num: int, day_num: int):
         log_entry = {
-            "day": self.timer.get_day(),
-            "day_session": self.timer.get_day_session(),
-            "session_time": self.timer.get_session_time(),
+            "timer_day": self.timer.get_day(),
+            "timer_day_session": self.timer.get_day_session(),
+            "timer_session_time": self.timer.get_session_time(),
             "action": self.Action.PLAYER_NEW_SESSION.value,
             "message": f"Player started new session {session_num} on day {day_num}",
             "session_num": session_num,
@@ -244,9 +257,9 @@ class Log:
 
     def log_player_new_day(self, day_num: int):
         log_entry = {
-            "day": self.timer.get_day(),
-            "day_session": self.timer.get_day_session(),
-            "session_time": self.timer.get_session_time(),
+            "timer_day": self.timer.get_day(),
+            "timer_day_session": self.timer.get_day_session(),
+            "timer_session_time": self.timer.get_session_time(),
             "action": self.Action.PLAYER_NEW_DAY.value,
             "message": f"Player started new day {day_num}",
             "day_num": day_num

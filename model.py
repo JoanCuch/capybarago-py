@@ -97,6 +97,7 @@ class Player_meta_progression:
     
     gold: int = 0
     chapter_level: int = 0
+    chapter_run_try: int = 0
 
 
     @staticmethod
@@ -130,6 +131,7 @@ class Player_meta_progression:
         )       
         gold = 0
         chapter = 1
+        chapter_run_try = 0
 
         new_meta = Player_meta_progression(
             log=log,
@@ -140,6 +142,7 @@ class Player_meta_progression:
             stat_max_hp=stat_max_hp,
             gold=gold,
             chapter_level=chapter,
+            chapter_run_try=chapter_run_try
         ) 
 
         return new_meta
@@ -154,6 +157,7 @@ class Player_meta_progression:
     
     def simulate(self):
     #get cheapest stat to upgrade
+        
         stat = self.get_cheapest_stat()
 
         if self.gold >= stat.get_cost():
@@ -167,6 +171,10 @@ class Player_meta_progression:
 
     def chapter_level_up(self):
         self.chapter_level += 1
+        return
+    
+    def new_chapter_run(self):
+        self.chapter_run_try += 1
         return
 
 @dataclass
@@ -336,7 +344,7 @@ class Day:
             case Day.EventType.BATTLE:
                 if self.event_enemy is None:
                     raise ValueError("Battle event requires an enemy character.")
-                self.simulate_battle(player_character, self.event_enemy, self.log)
+                self.simulate_battle(meta_progression.chapter_run_try,player_character, self.event_enemy, self.log)
                 if(not player_character.is_dead()):
                     meta_progression.add_gold(self.gold_reward)
             case _:
@@ -344,13 +352,22 @@ class Day:
 
         return
 
-    def simulate_battle(self, player_character: Player_Character, enemy: EnemyCharacter, log: Log):
+    def simulate_battle(self, run_try: int, player_character: Player_Character, enemy: EnemyCharacter, log: Log):
+
+        combat_rounds = 0
 
         while not player_character.is_dead() and not enemy.is_dead():
+            
+            assert combat_rounds < 1000, "Possible infinite loop detected in battle simulation"
             # Player attacks enemy
+            combat_rounds += 1
             damage_to_enemy = max(0, player_character.stat_atk - enemy.stat_def)
             enemy.modify_hp(-damage_to_enemy)
             log.log_player_attack(
+                chapter=self.chapter_num,
+                chapter_run_try=run_try,
+                day=self.day_num,
+                combat_round=combat_rounds,
                 enemy_type=enemy.type.value,
                 damage=damage_to_enemy,
                 enemy_hp=enemy.stat_hp
@@ -361,17 +378,26 @@ class Day:
 
                 log.log_battle_victory(
                     enemy_type=enemy.type.value,
-                    player_hp=player_character.stat_hp
+                    player_hp=player_character.stat_hp,
+                    enemy_hp=enemy.stat_hp,
+                    player_damage=damage_to_enemy
                 )
                 break
 
+
             # Enemy attacks player
+            combat_rounds += 1
             damage_to_player = max(0, enemy.stat_atk - player_character.stat_def)
             player_character.modify_hp(-damage_to_player)
             log.log_enemy_attack(
+                chapter=self.chapter_num,
+                chapter_run_try=run_try,
+                day=self.day_num,
+                combat_round=combat_rounds,
                 enemy_type=enemy.type.value,
                 damage=damage_to_player,
-                player_hp=player_character.stat_hp
+                player_hp=player_character.stat_hp,
+                enemy_hp=enemy.stat_hp
             )
             self.playerbehavior.time_spent(self.action_time_costs[ConfigTimerActions.BATTLE_ENEMY_TURN.value])
 
@@ -384,8 +410,7 @@ class Day:
 
                 break
 
-            assert damage_to_enemy == 0 and damage_to_player == 0, "Infinite battle detected, both 0 damage"
-        
+            assert not(damage_to_enemy == 0 and damage_to_player == 0), "Infinite battle detected, both 0 damage"
 
         return
 
@@ -517,9 +542,11 @@ class Model:
 
             # Chapter Simulation
             chapter_level = self.meta_progression.chapter_level
+            self.meta_progression.new_chapter_run()
             chapter_config = self.config.get_chapter_config(chapter_level)
             chapter = Chapter.initialize(chapter_config, self.meta_progression, enemies_config, self.log, self.player_behavior, self.action_time_costs)
             victory_bool = chapter.simulate()
+
 
             # Player Behavior Simulation
             #self.player_behavior.check_session()
@@ -531,6 +558,7 @@ class Model:
 
             if victory_bool:
                 self.meta_progression.chapter_level += 1
+                self.meta_progression.chapter_run_try= 0
 
         return self.log
                 

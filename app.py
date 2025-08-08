@@ -51,7 +51,7 @@ def player_type_select():
     st.write("Session per Day: ", player_behavior_df[player_behavior_df["player_type"] == selected_player_type][ConfigKeys.PLAYER_BEHAVIOR_SESSIONS_PER_DAY.value].values[0])
     st.write("Session Duration: ", player_behavior_df[player_behavior_df["player_type"] == selected_player_type][ConfigKeys.PLAYER_BEHAVIOR_SESSION_TIME.value].values[0])
 
-def day_complition_end(log: pd.DataFrame):
+def print_charts_day_completion(log: pd.DataFrame):
 
     day_log = log[log["action"] == Log.Action.DAY_COMPLETED.value]
 
@@ -74,22 +74,58 @@ def day_complition_end(log: pd.DataFrame):
         x_label="Chapter Day",
         y_label="Session Stats",
     )
-     
-    st.dataframe(day_log)
 
-    # "day": self.timer.get_day(),
+    return
+
+def print_charts_combat_turns(main_log: pd.DataFrame):
+
+    log = main_log[main_log["action"].isin([Log.Action.PLAYER_ATTACK.value, Log.Action.ENEMY_ATTACK.value])]
+
+    log = log[log["chapter"] == 1]
+    log["chapter_try_day_round"] = (
+        log["chapter"].astype(int).astype(str).str.zfill(2) + "_" +
+        log["chapter_run_try"].astype(int).astype(str).str.zfill(2) + "_" +
+        log["day"].astype(int).astype(str).str.zfill(2) + "_" +
+        log["combat_round"].astype(int).astype(str).str.zfill(2)
+        )
+    
+    log = log.sort_values(by="chapter_try_day_round")
+
+    st.line_chart(
+        x="chapter_try_day_round",
+        y=["player_hp", "enemy_hp"],
+        data=log,
+        use_container_width=True,
+        x_label="Round",
+        y_label="HP",
+    )
+
+    #     def log_player_attack(self,damage: int, enemy_type: str, enemy_hp: int):
+    #     log_entry = {
+    #         "day": self.timer.get_day(),
     #         "day_session": self.timer.get_day_session(),
     #         "session_time": self.timer.get_session_time(),
-    #         "action": self.Action.DAY_COMPLETED.value,
-    #         "message": f"Day {day_num} completed for Chapter {chapter_num} with event {event_type}",
-    #         "chapter_num": chapter_num,
-    #         "day_num": day_num,
-    #         "event_type": event_type,
-    #         "event_param": event_param,
+    #         "action": self.Action.PLAYER_ATTACK.value,
+    #         "message": f"Player attacked {enemy_type} for {damage} damage",
+    #         "damage": damage,
+    #         "enemy_type": enemy_type,
+    #         "enemy_hp": enemy_hp
+    #     }
+    #     self.logs.append(log_entry)
+
+    # def log_enemy_attack(self, damage: int, enemy_type: str, player_hp: int, enemy_hp: int):
+    #     log_entry = {
+    #         "day": self.timer.get_day(),
+    #         "day_session": self.timer.get_day_session(),
+    #         "session_time": self.timer.get_session_time(),
+    #         "action": self.Action.ENEMY_ATTACK.value,
+    #         "message": f"{enemy_type} attacked player for {damage} damage",
+    #         "enemy_damage": damage,
     #         "player_hp": player_hp,
-    #         "player_max_hp": player_max_hp,
-    #         "player_atk": player_atk,
-    #         "player_def": player_def
+    #         "enemy_hp": enemy_hp,
+    #         "enemy_type": enemy_type
+    #     }
+
 
     return
 
@@ -99,8 +135,14 @@ with st.sidebar:
     if st.button("Reset Config"):
         st.cache_data.clear()
         st.session_state.clear()
+        st.rerun()
 
     st.sidebar.toggle("Show/Hide Config", key="modify_config")
+
+    if st.button("Run Simulation"):
+        st.session_state.model = Model.initialize(st.session_state.config)
+        st.session_state.log = st.session_state.model.simulate()
+        st.session_state.log_df = st.session_state.log.get_logs_as_dataframe()
 
 
 if 'config' not in st.session_state:
@@ -115,12 +157,6 @@ if st.session_state.modify_config:
     
 
 player_type_select()
-
-if st.button("Run Simulation"):
-    # Run simulation once and store results
-    st.session_state.model = Model.initialize(st.session_state.config)
-    st.session_state.log = st.session_state.model.simulate()
-    st.session_state.log_df = st.session_state.log.get_logs_as_dataframe()
 
     
 if st.session_state.log_df is not None:
@@ -146,4 +182,5 @@ if st.session_state.log_df is not None:
     st.dataframe(filtered_df, hide_index=True, height=700)
 
 
-    day_complition_end(log_df)
+    print_charts_day_completion(log_df)
+    print_charts_combat_turns(log_df)
