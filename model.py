@@ -4,7 +4,7 @@ import pandas as pd
 import config_import as config_import
 from config_import import ConfigKeys, Config, ConfigTimerActions
 from enum import Enum
-from auxiliar import Log, Timer
+from utils import Log, Timer
 
 # Controls the time the players spends in the game
 @dataclass
@@ -305,11 +305,15 @@ class Day:
 
     def simulate(self, player_character: Player_Character, meta_progression: Player_meta_progression):
 
-        self.log.log_day_completed(
+        self.log.log_chapter_run_day_completed(
             chapter_num=self.chapter_num,
             day_num=self.day_num,
             event_type=self.event_type.value,
-            event_param=self.event_param
+            event_param=self.event_param,
+            player_hp=player_character.stat_hp,
+            player_max_hp=player_character.stat_max_hp,
+            player_atk=player_character.stat_atk,
+            player_def=player_character.stat_def
         )
         
         match self.event_type:

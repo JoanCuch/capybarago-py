@@ -138,17 +138,23 @@ class Log:
         self.logs.append(log_entry)
 
 
-    def log_day_completed(self, day_num: int, chapter_num: int, event_type, event_param):
+    def log_chapter_run_day_completed(self, day_num: int, chapter_num: int, event_type, event_param, 
+                          player_hp: int, player_max_hp:int, player_atk: int, player_def: int):
+        
         log_entry = {
             "day": self.timer.get_day(),
             "day_session": self.timer.get_day_session(),
             "session_time": self.timer.get_session_time(),
             "action": self.Action.DAY_COMPLETED.value,
             "message": f"Day {day_num} completed for Chapter {chapter_num} with event {event_type}",
-            "day_num": day_num,
-            "chapter_num": chapter_num,
+            "chapter": chapter_num,
+            "day": day_num,
             "event_type": event_type,
-            "event_param": event_param
+            "event_param": event_param,
+            "player_hp": player_hp,
+            "player_max_hp": player_max_hp,
+            "player_atk": player_atk,
+            "player_def": player_def
         }
         self.logs.append(log_entry)
 

@@ -3,7 +3,7 @@ import pandas as pd
 from config_import import Config, ConfigKeys
 from model import Model
 from typing import Any, Dict, cast
-from auxiliar import Log
+from utils import Log
 
 
 def modify_config():
@@ -51,6 +51,47 @@ def player_type_select():
     st.write("Session per Day: ", player_behavior_df[player_behavior_df["player_type"] == selected_player_type][ConfigKeys.PLAYER_BEHAVIOR_SESSIONS_PER_DAY.value].values[0])
     st.write("Session Duration: ", player_behavior_df[player_behavior_df["player_type"] == selected_player_type][ConfigKeys.PLAYER_BEHAVIOR_SESSION_TIME.value].values[0])
 
+def day_complition_end(log: pd.DataFrame):
+
+    day_log = log[log["action"] == Log.Action.DAY_COMPLETED.value]
+
+    #day_log = day_log[day_log["chapter"] == 1]
+
+    day_log["chapter_day"] = (
+        day_log["chapter"].astype(int).astype(str).str.zfill(2) + "_" +
+        day_log["day"].astype(int).astype(str).str.zfill(2)
+        )
+    #day_log.set_index("chapter_day", inplace=True)
+    day_log = day_log.sort_values(by=["chapter", "day"])
+    #day_log.set_index("chapter_day", inplace=True)
+    
+    st.subheader("Player Stats Progression per Chapter Run")
+    st.line_chart(
+        x="chapter_day",
+        y=["player_hp", "player_max_hp", "player_atk", "player_def"],
+        data=day_log,
+        use_container_width=True,
+        x_label="Chapter Day",
+        y_label="Session Stats",
+    )
+     
+    st.dataframe(day_log)
+
+    # "day": self.timer.get_day(),
+    #         "day_session": self.timer.get_day_session(),
+    #         "session_time": self.timer.get_session_time(),
+    #         "action": self.Action.DAY_COMPLETED.value,
+    #         "message": f"Day {day_num} completed for Chapter {chapter_num} with event {event_type}",
+    #         "chapter_num": chapter_num,
+    #         "day_num": day_num,
+    #         "event_type": event_type,
+    #         "event_param": event_param,
+    #         "player_hp": player_hp,
+    #         "player_max_hp": player_max_hp,
+    #         "player_atk": player_atk,
+    #         "player_def": player_def
+
+    return
 
 st.title("Capybara Go Simulator")
 
@@ -103,3 +144,6 @@ if st.session_state.log_df is not None:
 
     filtered_df = log_df[log_df["action"].isin(selected_actions)]
     st.dataframe(filtered_df, hide_index=True, height=700)
+
+
+    day_complition_end(log_df)
