@@ -467,7 +467,7 @@ class Chapter:
                 break
 
         if victory:
-            self.log.log_chapter_victory(self.meta_progression.chapter_level)
+            self.log.log_chapter_victory(self.meta_progression.chapter_level, self.meta_progression.chapter_run_try)
         else:
             self.log.log_chapter_defeat(self.meta_progression.chapter_level)
 

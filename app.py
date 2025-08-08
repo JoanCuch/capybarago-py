@@ -77,6 +77,33 @@ def print_charts_day_completion(log: pd.DataFrame):
 
     return
 
+def print_charts_chapter_day_progression(main_log: pd.DataFrame):
+
+    log = main_log[main_log["action"] == Log.Action.CHAPTER_VICTORY.value]  
+
+    # Create a DataFrame with minimum timer_day per chapter (first victory day)
+    victory_log = log.groupby('chapter')['timer_day'].min().reset_index()
+    
+    chapter_tries = log.groupby('chapter')['chapter_run_try'].max().reset_index()
+    victory_log = victory_log.merge(chapter_tries, on='chapter', how='left')
+        
+    st.subheader("Day Victory per Chapter")
+    st.line_chart(
+        victory_log.set_index('chapter')[['timer_day', 'chapter_run_try']],
+        use_container_width=True,
+        x_label="Chapter",
+        y_label="Days to Complete"
+    )
+
+    # "timer_day": self.timer.get_day(),
+    #         "timer_day_session": self.timer.get_day_session(),
+    #         "timer_session_time": self.timer.get_session_time(),
+    #         "action": self.Action.CHAPTER_VICTORY.value,
+    #         "message": f"Chapter {chapter_num} completed with victory",
+    #         "chapter": chapter_num
+
+    return
+
 def print_charts_combat_turns(main_log: pd.DataFrame):
 
     log = main_log[main_log["action"].isin([Log.Action.PLAYER_ATTACK.value, Log.Action.ENEMY_ATTACK.value])]
@@ -184,3 +211,4 @@ if st.session_state.log_df is not None:
 
     print_charts_day_completion(log_df)
     print_charts_combat_turns(log_df)
+    print_charts_chapter_day_progression(log_df)

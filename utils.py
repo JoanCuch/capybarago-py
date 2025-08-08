@@ -158,14 +158,15 @@ class Log:
         }
         self.logs.append(log_entry)
 
-    def log_chapter_victory(self, chapter_num: int):
+    def log_chapter_victory(self, chapter_num: int, chapter_run_try: int):
         log_entry = {
             "timer_day": self.timer.get_day(),
             "timer_day_session": self.timer.get_day_session(),
             "timer_session_time": self.timer.get_session_time(),
             "action": self.Action.CHAPTER_VICTORY.value,
             "message": f"Chapter {chapter_num} completed with victory",
-            "chapter_num": chapter_num
+            "chapter": chapter_num,
+            "chapter_run_try": chapter_run_try
         }
         self.logs.append(log_entry)
 
@@ -176,7 +177,7 @@ class Log:
             "timer_session_time": self.timer.get_session_time(),
             "action": self.Action.CHAPTER_DEFEAT.value,
             "message": f"Chapter {chapter_num} completed with defeat",
-            "chapter_num": chapter_num
+            "chapter": chapter_num
         }
         self.logs.append(log_entry)
 
